@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-27
+
+### Changed
+
+- Compile against the platform's interface default methods directly, so the plugin verifier no longer reports deprecated or experimental API usage from generated stubs.
+- The settings page shows the diagnostics log path relative to the home directory.
+
 ## [0.1.1] - 2026-10-27
 
 ### Changed

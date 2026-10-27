@@ -11,6 +11,11 @@ version = providers.gradleProperty("pluginVersion").get()
 
 kotlin {
     jvmToolchain(25)
+    compilerOptions {
+        // Inherit the platform's interface default methods as real JVM defaults instead of generating delegating
+        // stubs for every one of them; the stubs made the plugin verifier report deprecated/experimental API usage.
+        freeCompilerArgs.add("-jvm-default=no-compatibility")
+    }
 }
 
 repositories {
