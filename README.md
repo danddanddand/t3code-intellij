@@ -12,8 +12,7 @@ page, a crashed renderer or a dead Chromium process is reported with a status ca
 notification and a one-click fix instead of a blank pane.
 
 This is an independent, community-maintained plugin. It is not affiliated with or endorsed by
-T3 Tools Inc. For a native (non-web-view) take on the same idea see
-[xxfast/t3-jetbrains-plugin](https://github.com/xxfast/t3-jetbrains-plugin).
+T3 Tools Inc.
 
 <!-- Plugin description -->
 Embeds the <a href="https://t3.gg/code">T3 Code</a> web UI in a tool window so you can drive
