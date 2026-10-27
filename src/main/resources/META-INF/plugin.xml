@@ -1,0 +1,18 @@
+<idea-plugin>
+    <id>io.github.danddanddand.t3code</id>
+    <name>T3 Code Tool Window</name>
+    <vendor url="https://github.com/danddanddand/t3code-intellij">danddanddand</vendor>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.jcef</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="T3 Code" anchor="right" icon="/icons/toolWindow.svg"
+                    factoryClass="io.github.danddanddand.t3code.T3CodeToolWindowFactory"/>
+        <applicationService serviceImplementation="io.github.danddanddand.t3code.T3CodeSettings"/>
+        <applicationConfigurable parentId="tools" instance="io.github.danddanddand.t3code.T3CodeConfigurable"
+                                 id="io.github.danddanddand.t3code.settings" displayName="T3 Code"/>
+        <notificationGroup id="T3 Code" displayType="BALLOON"/>
+        <postStartupActivity implementation="io.github.danddanddand.t3code.T3CodeSandboxActivity"/>
+    </extensions>
+</idea-plugin>

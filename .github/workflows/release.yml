@@ -1,0 +1,39 @@
+name: Release
+
+# Tag a commit v<version> (matching pluginVersion in gradle.properties) to build the zip,
+# attach it to a GitHub release and, when the PUBLISH_TOKEN secret is set, upload it to the
+# JetBrains Marketplace.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Check tag matches pluginVersion
+        run: |
+          v=$(grep '^pluginVersion' gradle.properties | sed 's/.*= *//')
+          [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "tag ${GITHUB_REF_NAME} != v$v"; exit 1; }
+      - name: Build and verify
+        run: ./gradlew buildPlugin verifyPlugin --console=plain
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes=$(awk '/^## \[/{n++} n==2' CHANGELOG.md | tail -n +2)
+          gh release create "${GITHUB_REF_NAME}" build/distributions/*.zip --title "${GITHUB_REF_NAME}" --notes "$notes"
+      - name: Publish to JetBrains Marketplace
+        if: ${{ env.PUBLISH_TOKEN != '' }}
+        env:
+          PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+        run: ./gradlew publishPlugin --console=plain

@@ -1,0 +1,11 @@
+.gradle
+.idea
+.intellijPlatform
+.kotlin
+.qodana
+build
+.DS_Store
+sandbox/out/
+sandbox/t3code/
+sandbox/t3-home/
+sandbox/*.log
