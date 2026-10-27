@@ -97,7 +97,7 @@ intellijPlatformTesting {
                 val t3Url = providers.gradleProperty("t3SandboxUrl").getOrElse("http://127.0.0.1:3799/")
                 // -Pt3SandboxInProcess=true runs JCEF inside the IDE process instead of cef_server (JBR-10027 workaround).
                 val inProcess = providers.gradleProperty("t3SandboxInProcess").getOrElse("false").toBoolean()
-                args(layout.projectDirectory.dir("sandbox/project").asFile.absolutePath)
+                args(layout.projectDirectory.dir("sandbox/demo-app").asFile.absolutePath)
                 jvmArgumentProviders += CommandLineArgumentProvider {
                     listOf(
                         "-Djcef.log.level=verbose",

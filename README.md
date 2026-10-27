@@ -14,6 +14,8 @@ notification and a one-click fix instead of a blank pane.
 This is an independent, community-maintained plugin. It is not affiliated with or endorsed by
 T3 Tools Inc.
 
+![T3 Code tool window next to the editor](docs/screenshots/1-tool-window.png)
+
 <!-- Plugin description -->
 Embeds the <a href="https://t3.gg/code">T3 Code</a> web UI in a tool window so you can drive
 your agents without leaving the IDE. Unofficial; not affiliated with T3 Tools Inc.

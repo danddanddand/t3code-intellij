@@ -9,3 +9,5 @@ sandbox/out/
 sandbox/t3code/
 sandbox/t3-home/
 sandbox/*.log
+sandbox/demo-app/.idea/
+sandbox/demo-app/node_modules/

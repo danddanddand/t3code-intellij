@@ -1,6 +1,7 @@
 package io.github.danddanddand.t3code
 
 import com.intellij.openapi.options.BoundConfigurable
+import com.intellij.openapi.util.io.FileUtil
 import com.intellij.ui.dsl.builder.bindIntText
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.bindText
@@ -44,7 +45,7 @@ class T3CodeConfigurable : BoundConfigurable("T3 Code") {
             row {
                 checkBox("Write verbose JCEF diagnostics to the IDE log folder (takes effect after restart)")
                     .bindSelected(settings::diagnosticLogging)
-                    .comment("Log file: ${T3CodeDiagnostics.jcefLogPath}")
+                    .comment("Log file: ${FileUtil.getLocationRelativeToUserHome(T3CodeDiagnostics.jcefLogPath.toString())}")
             }
         }
     }

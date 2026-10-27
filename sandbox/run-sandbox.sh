@@ -20,7 +20,7 @@ if [ -n "${T3_SANDBOX_URL:-}" ]; then
   URL="$T3_SANDBOX_URL"; T3_PID=""
 else
 t3 serve --mode web --host 127.0.0.1 --port "$PORT" --base-dir "$T3_HOME" --no-browser \
-  --auto-bootstrap-project-from-cwd "$PWD/sandbox/project" >"$OUT/t3-serve.log" 2>&1 &
+  --auto-bootstrap-project-from-cwd "$PWD/sandbox/demo-app" >"$OUT/t3-serve.log" 2>&1 &
 T3_PID=$!
 for _ in $(seq 1 30); do curl -sf -o /dev/null "http://127.0.0.1:$PORT/" && break; sleep 1; done
 curl -sf -o /dev/null "http://127.0.0.1:$PORT/" || { echo "t3 serve did not come up"; cat "$OUT/t3-serve.log"; kill $T3_PID; exit 1; }
