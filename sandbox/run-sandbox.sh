@@ -30,7 +30,7 @@ fi
 
 # --- sandbox IDE -----------------------------------------------------------------------------------------
 # The sandbox is Ultimate (Community is no longer published), so it needs your licence: reuse the real IDE's key.
-SANDBOX_CONFIG=".intellijPlatform/sandbox/IntellijT3Code/IU-2026.2/config_runSandboxIde"
+SANDBOX_CONFIG=".intellijPlatform/sandbox/t3code-intellij/IU-2026.2/config_runSandboxIde"
 KEY="$HOME/Library/Application Support/JetBrains/IntelliJIdea2026.2/idea.key"
 [ -f "$KEY" ] && { mkdir -p "$SANDBOX_CONFIG"; cp "$KEY" "$SANDBOX_CONFIG/idea.key"; }
 ./gradlew runSandboxIde -Pt3SandboxUrl="$URL" -Pt3SandboxInProcess="${T3_SANDBOX_INPROCESS:-false}" --console=plain >"$OUT/ide-stdout.log" 2>&1 &
