@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>io.github.danddanddand.t3code</id>
     <name>T3 Code Tool Window</name>
-    <vendor url="https://github.com/danddanddand/t3code-intellij">danddanddand</vendor>
+    <vendor email="t3code@borderconnect.com" url="https://github.com/danddanddand/t3code-intellij">danddanddand</vendor>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.jcef</depends>

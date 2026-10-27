@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-27
+
+### Changed
+
+- Vendor contact email in the plugin descriptor.
+
 ## [0.1.0] - 2026-10-27
 
 ### Added
