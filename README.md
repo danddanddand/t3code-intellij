@@ -89,6 +89,10 @@ processes every five seconds and collects every log into `sandbox/out/`.
 `T3_SANDBOX_URL=<url>` points the pane at any other page; `T3_SANDBOX_INPROCESS=true` runs
 JCEF in-process.
 
+## Privacy
+
+The plugin collects no data and talks only to the T3 Code server you configure. See [PRIVACY.md](PRIVACY.md).
+
 ## Licence
 
 MIT. The icons are derived from the T3 Code logo, also MIT, see [NOTICE](NOTICE).
