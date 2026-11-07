@@ -55,11 +55,15 @@ intellijPlatform {
             // Latest released section of CHANGELOG.md, as HTML paragraphs/list items.
             val section = text.split(Regex("^## ", RegexOption.MULTILINE)).drop(1)
                 .firstOrNull { !it.startsWith("[Unreleased]") }.orEmpty()
+            // Escape HTML, then turn the inline Markdown the changelog uses (`code`, **bold**) into tags.
+            fun inline(md: String) = md.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace(Regex("`([^`]+)`"), "<code>$1</code>")
+                .replace(Regex("\\*\\*([^*]+)\\*\\*"), "<b>$1</b>")
             section.lines().drop(1).filter { it.isNotBlank() }.joinToString("\n") { line ->
                 when {
-                    line.startsWith("### ") -> "<p><b>${line.removePrefix("### ")}</b></p>"
-                    line.startsWith("- ") -> "<li>${line.removePrefix("- ")}</li>"
-                    else -> line
+                    line.startsWith("### ") -> "<p><b>${inline(line.removePrefix("### "))}</b></p>"
+                    line.startsWith("- ") -> "<li>${inline(line.removePrefix("- "))}</li>"
+                    else -> inline(line)
                 }
             }.let { "<ul>$it</ul>" }
         }
