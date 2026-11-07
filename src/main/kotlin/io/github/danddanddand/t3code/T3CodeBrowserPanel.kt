@@ -184,6 +184,7 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
         try {
             installPing(created, disposable)
             installFailureHandlers(created)
+            T3CodeExternalLinks.install(created) { settings.serverUrl }
         } catch (e: Throwable) {
             tearDownBrowser()
             browserCreationFailed(e)
@@ -221,36 +222,48 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
 
     private var pingScript: String? = null
 
+    // Out-of-process JCEF delivers these callbacks over its RPC link and may pass nulls (an ad iframe's load error
+    // arrived with errorCode = null). An exception thrown here goes back into that link and resets it, after which the
+    // page stops painting, so every parameter is nullable and every body is guarded.
     private fun installFailureHandlers(target: JBCefBrowser) {
         target.jbCefClient.addLoadHandler(object : CefLoadHandlerAdapter() {
-            override fun onLoadEnd(cefBrowser: CefBrowser, frame: CefFrame, httpStatusCode: Int) {
-                if (frame.isMain) {
+            override fun onLoadEnd(cefBrowser: CefBrowser?, frame: CefFrame?, httpStatusCode: Int) = guarded {
+                if (frame?.isMain == true) {
                     pageLoaded = true
                     lastPongMillis = System.currentTimeMillis()
                 }
             }
 
             override fun onLoadError(
-                cefBrowser: CefBrowser, frame: CefFrame, errorCode: CefLoadHandler.ErrorCode, errorText: String, failedUrl: String,
-            ) {
-                if (!frame.isMain || errorCode == CefLoadHandler.ErrorCode.ERR_ABORTED) return
+                cefBrowser: CefBrowser?, frame: CefFrame?, errorCode: CefLoadHandler.ErrorCode?, errorText: String?, failedUrl: String?,
+            ) = guarded {
+                if (frame?.isMain != true || errorCode == null || errorCode == CefLoadHandler.ErrorCode.ERR_ABORTED) return@guarded
+                // Only the T3 Code server matters; off-server pages never load in the pane.
                 reportFailure(
                     "Page failed to load",
-                    "$errorCode ($errorText) while loading $failedUrl. The T3 Code server may have stopped.",
+                    "$errorCode (${errorText.orEmpty()}) while loading ${failedUrl.orEmpty()}. The T3 Code server may have stopped.",
                 )
             }
         }, target.cefBrowser)
 
         target.jbCefClient.addRequestHandler(object : CefRequestHandlerAdapter() {
             override fun onRenderProcessTerminated(
-                cefBrowser: CefBrowser, status: CefRequestHandler.TerminationStatus, errorCode: Int, errorString: String,
-            ) {
+                cefBrowser: CefBrowser?, status: CefRequestHandler.TerminationStatus?, errorCode: Int, errorString: String?,
+            ) = guarded {
                 reportFailure(
                     "Browser renderer crashed",
-                    "Chromium terminated the T3 Code page: $status ($errorCode${if (errorString.isBlank()) "" else ", $errorString"}).",
+                    "Chromium terminated the T3 Code page: $status ($errorCode${if (errorString.isNullOrBlank()) "" else ", $errorString"}).",
                 )
             }
         }, target.cefBrowser)
+    }
+
+    private inline fun guarded(block: () -> Unit) {
+        try {
+            block()
+        } catch (e: Throwable) {
+            thisLogger().warn("T3 Code browser callback failed", e)
+        }
     }
 
     private fun startHealthCheck() {
@@ -293,6 +306,8 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
         val silentForMillis = System.currentTimeMillis() - lastPongMillis
         val timeoutMillis = settings.healthCheckTimeoutSeconds * 1000L
         if (silentForMillis > timeoutMillis) {
+            // No pongs usually means JCEF's callback link is gone, which only a JCEF relaunch repairs.
+            serverDied = true
             reportFailure(
                 "Browser not responding",
                 "The T3 Code page has not answered a ping for ${silentForMillis / 1000} seconds. " +
@@ -335,6 +350,9 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
     private fun tearDownBrowser() {
         healthCheck?.cancel(false)
         healthCheck = null
+        // Hide the browser before removing it: removing the visible card makes CardLayout re-lay out the component,
+        // and a JBCefOsrComponent that is already shutting down logs "Already disposed" from its resize alarm.
+        if (browser != null && !disposed) cards.show(cardPanel, CARD_STATUS)
         browser?.let { cardPanel.remove(it.component) }
         browserDisposable?.let { Disposer.dispose(it) }
         browser = null

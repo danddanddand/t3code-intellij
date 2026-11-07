@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-07
+
+### Fixed
+
+- Clicking a link to another site replaced T3 Code in the pane with no way back. Links that leave the T3 Code server, including ones that open a new window, now open in the system browser, as they do in the T3 Code desktop app.
+- A page that failed to load part of itself (an ad frame on the JetBrains Marketplace) could leave the pane blank for good: JCEF reported the error with a missing value, the plugin's handler threw, and the exception broke JCEF's link to its Chromium server. Every browser callback now tolerates missing values and keeps its own errors.
+- **Restart Browser** now relaunches Chromium when the page has stopped answering, instead of reopening it on the same broken link.
+- **Restart Browser** no longer logs an "Already disposed" IDE error while closing the old browser.
+
 ## [0.1.3] - 2026-11-07
 
 ### Added
