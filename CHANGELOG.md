@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-07
+
+### Added
+
+- Drag files from Finder or another app into the T3 Code pane. Images and other files attach to the composer as they do in the T3 Code desktop app, folders are inserted as path mentions, and images dragged from a browser or Preview attach as PNG. The IDE's out-of-process browser does not pass drags to the page, so the plugin catches the drop and hands the files to T3 Code itself. Files over 50 MB are skipped with a notification.
+
+### Fixed
+
+- The embedded browser no longer dies about two minutes after the pane opens on IntelliJ 2026.2 (JetBrains JBR-10027). JCEF treats any idle handler thread expiring as a lost connection to its Chromium server and shuts Chromium down; the plugin now keeps those threads alive, so the false disconnect never happens. This fixes Markdown preview and other embedded browsers in the IDE too.
+- IntelliJ IDEA 2026.2.4 (build 262.11879) crashed at startup when the T3 Code pane reopened with JCEF in in-process mode, the mode this plugin used to recommend. From that build on, in-process Chromium hits a native check as it loads and takes the IDE down. The pane now refuses to start the browser in that mode and offers **Switch Back and Restart IDE**, which restores the registry key `ide.browser.jcef.out-of-process.enabled` to its default.
+- **Restart Browser** could not bring the pane back after the Chromium server exited, because the IDE only registers its own restart action in internal mode. The plugin now relaunches JCEF itself, and does so once automatically if the server exits.
+
+- Notes on the settings page now wrap instead of running off the edge and adding a horizontal scrollbar in narrow Settings windows.
+
+### Removed
+
+- The prompt to switch JCEF to in-process mode. It only comes back, inside the error card, if the JBR-10027 fix cannot be applied on an IDE build older than 2026.2.4.
+
 ## [0.1.2] - 2026-10-27
 
 ### Changed

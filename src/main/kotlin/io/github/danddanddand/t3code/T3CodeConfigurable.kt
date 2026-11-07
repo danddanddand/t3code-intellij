@@ -2,6 +2,7 @@ package io.github.danddanddand.t3code
 
 import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.util.io.FileUtil
+import com.intellij.ui.dsl.builder.MAX_LINE_LENGTH_WORD_WRAP
 import com.intellij.ui.dsl.builder.bindIntText
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.bindText
@@ -14,11 +15,11 @@ class T3CodeConfigurable : BoundConfigurable("T3 Code") {
         group("Server") {
             row("Server URL:") {
                 textField().bindText(settings::serverUrl).columns(40)
-                    .comment("The T3 Code desktop app listens on http://127.0.0.1:3773/ by default.")
+                    .comment("The T3 Code desktop app listens on http://127.0.0.1:3773/ by default.", MAX_LINE_LENGTH_WORD_WRAP)
             }
             row("t3 CLI:") {
                 textField().bindText(settings::cliPath).columns(40)
-                    .comment("Command or absolute path used for pairing, for example ~/.local/bin/t3.")
+                    .comment("Command or absolute path used for pairing, for example ~/.local/bin/t3.", MAX_LINE_LENGTH_WORD_WRAP)
             }
             row("Pairing token TTL:") {
                 textField().bindText(settings::pairTtl).columns(10)
@@ -26,9 +27,13 @@ class T3CodeConfigurable : BoundConfigurable("T3 Code") {
         }
         group("Embedded Browser") {
             row {
-                checkBox("Do not suggest switching JCEF to in-process mode on affected IDE builds")
+                checkBox("Do not suggest in-process JCEF as a fallback")
                     .bindSelected(settings::ignoreJcefModeAdvice)
-                    .comment("Out-of-process JCEF in IntelliJ 2026.2 drops its connection after about two minutes (JetBrains JBR-10027).")
+                    .comment(
+                        "The plugin keeps IntelliJ 2026.2's out-of-process browser from dropping its connection (JetBrains JBR-10027). " +
+                            "Only if that fails, on builds before 2026.2.4, does it suggest in-process JCEF instead.",
+                        MAX_LINE_LENGTH_WORD_WRAP,
+                    )
             }
         }
         group("Health Monitoring") {
@@ -37,15 +42,14 @@ class T3CodeConfigurable : BoundConfigurable("T3 Code") {
             }
             row("Freeze timeout (seconds):") {
                 intTextField(5..3600).bindIntText(settings::healthCheckTimeoutSeconds)
-                    .comment("The browser is reported as frozen when the page has not answered a ping for this long.")
-            }
+            }.rowComment("The browser is reported as frozen when the page has not answered a ping for this long.", MAX_LINE_LENGTH_WORD_WRAP)
             row {
                 checkBox("Show a notification when the browser crashes or freezes").bindSelected(settings::notifyOnFailure)
             }
             row {
                 checkBox("Write verbose JCEF diagnostics to the IDE log folder (takes effect after restart)")
                     .bindSelected(settings::diagnosticLogging)
-                    .comment("Log file: ${FileUtil.getLocationRelativeToUserHome(T3CodeDiagnostics.jcefLogPath.toString())}")
+                    .comment("Log file: ${FileUtil.getLocationRelativeToUserHome(T3CodeDiagnostics.jcefLogPath.toString())}", MAX_LINE_LENGTH_WORD_WRAP)
             }
         }
     }

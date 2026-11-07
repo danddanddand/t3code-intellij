@@ -14,7 +14,10 @@ notification and a one-click fix instead of a blank pane.
 This is an independent, community-maintained plugin. It is not affiliated with or endorsed by
 T3 Tools Inc.
 
-![T3 Code tool window next to the editor](docs/screenshots/1-tool-window.png)
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/1-tool-window-light.png">
+  <img alt="T3 Code tool window next to the editor" src="docs/screenshots/1-tool-window.png">
+</picture>
 
 <!-- Plugin description -->
 Embeds the <a href="https://t3.gg/code">T3 Code</a> web UI in a tool window so you can drive
@@ -24,8 +27,9 @@ your agents without leaving the IDE. Unofficial; not affiliated with T3 Tools In
 <li>Loads your local T3 Code server (default <code>http://127.0.0.1:3773/</code>) in the IDE's embedded Chromium, with no browser chrome.</li>
 <li>Checks the server is reachable before loading and explains how to start it when it is not.</li>
 <li>Pairs with the server for you by running <code>t3 pair</code>.</li>
+<li>Accepts files, images and folders dragged in from Finder or other apps, attaching them to the composer as the T3 Code desktop app does.</li>
 <li>Monitors the page and the Chromium process and reports a frozen or crashed browser with a one-click restart.</li>
-<li>Detects the IntelliJ 2026.2 out-of-process JCEF bug (JBR-10027) that kills embedded browsers after two minutes and offers to switch the IDE to in-process JCEF.</li>
+<li>Works around the IntelliJ 2026.2 out-of-process JCEF bug (JBR-10027) that kills embedded browsers after two minutes.</li>
 </ul>
 <!-- Plugin description end -->
 
@@ -51,12 +55,20 @@ health-check timing and diagnostic logging.
 ### IntelliJ 2026.2 and out-of-process JCEF
 
 2026.2 runs embedded Chromium in a separate `cef_server` process by default. A bug in the
-JCEF client ([JBR-10027](https://youtrack.jetbrains.com/issue/JBR-10027)) makes that process exit
-about two minutes after the first browser is created, which blanks every embedded browser in the
-IDE (this plugin, Markdown preview, and so on). The plugin detects the situation and offers
-**Switch and Restart IDE**, which sets the registry key
-`ide.browser.jcef.out-of-process.enabled` to `false`. You can do the same by hand from
-Help, Find Action, Registry.
+JCEF client ([JBR-10027](https://youtrack.jetbrains.com/issue/JBR-10027)) shuts that process
+down about two minutes after the first browser is created, which blanks every embedded browser
+in the IDE (this plugin, Markdown preview, and so on). JCEF serves `cef_server`'s callbacks from a
+thread pool whose idle threads expire after 60 seconds, and it treats any of those threads ending
+as a lost connection. The plugin raises the pool's core size to its maximum so idle threads never
+expire, which stops the false disconnect for the whole IDE. If a future JCEF changes those
+internals, the plugin logs a warning and relaunches Chromium when it exits instead.
+
+Do not switch JCEF to in-process mode (registry key `ide.browser.jcef.out-of-process.enabled`)
+on 2026.2.4 (build 262.11879) or later: in-process Chromium crashes the IDE as it loads. If the
+key is already `false` there, the pane does not start the browser and offers
+**Switch Back and Restart IDE**. If the IDE crashes before you can reach the pane, quit it and
+delete the `ide.browser.jcef.out-of-process.enabled` line from `options/ide.general.xml` in the
+IDE's config directory.
 
 ## Build
 

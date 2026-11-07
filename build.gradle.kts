@@ -116,6 +116,8 @@ intellijPlatformTesting {
                         "-Djb.consents.confirmation.enabled=false",
                         "-Dide.show.tips.on.startup.default.value=false",
                         "-Didea.trust.all.projects=true",
+                        // Chrome DevTools Protocol on the embedded browser, for scripting screenshots and debugging the page.
+                        "-Dide.browser.jcef.debug.port=9333",
                     ) + if (inProcess) listOf("-Djcef.remote.enabled=false") else emptyList()
                 }
             }

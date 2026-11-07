@@ -60,7 +60,7 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
     @Volatile private var disposed = false
     @Volatile private var serverSeen = false
     @Volatile private var serverDied = false
-    private var modeAdviceShown = false
+    @Volatile private var lastAutoRelaunchMillis = 0L
 
     init {
         Disposer.register(parent, this)
@@ -69,24 +69,23 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
     }
 
     fun start() {
+        // Must run before anything touches JBCefApp: creating a browser here would load Chromium in-process and crash the IDE.
+        if (T3CodeJcefMode.isInProcessOnCrashingBuild) {
+            thisLogger().warn("Not starting the embedded browser: in-process JCEF crashes this IDE build")
+            showStatus(
+                "Embedded browser blocked",
+                T3CodeJcefMode.crashingBuildExplanation,
+                retry = if (T3CodeJcefMode.isForcedByVmOption) null
+                    else "Switch Back and Restart IDE" to { T3CodeJcefMode.switchToOutOfProcessAndRestart() },
+            )
+            return
+        }
         if (!JBCefApp.isSupported()) {
             showStatus(
                 "Embedded browser unavailable",
                 "JCEF is not supported by this IDE runtime. Use the bundled JetBrains Runtime, or check that the " +
                     "'Web Browser (JCEF)' bundled plugin is enabled.",
                 retry = null,
-            )
-            return
-        }
-        if (T3CodeJcefMode.shouldOfferSwitch && !modeAdviceShown) {
-            modeAdviceShown = true
-            showStatus(
-                "IDE browser mode needs a change",
-                "This IDE build runs its embedded browser in a separate cef_server process, which drops the connection " +
-                    "about two minutes after a page opens (JetBrains issue JBR-10027). Switching JCEF to in-process mode " +
-                    "avoids it. The IDE restarts after the switch.",
-                retry = "Switch and Restart IDE" to { T3CodeJcefMode.switchToInProcessAndRestart() },
-                secondary = "Continue Anyway" to { settings.ignoreJcefModeAdvice = true; start() },
             )
             return
         }
@@ -121,16 +120,27 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
         start()
     }
 
-    // JBCefApp registers an IDE action that tears down and recreates the whole CEF app; it is the only
-    // supported way to get a new cef_server once the old one is gone.
+    // A new cef_server can only come from JBCefApp.restartJCEF. JBCefApp exposes it as the RestartJCEFActionId
+    // action, but registers that action only in internal mode, so outside it the method is called reflectively
+    // with the same arguments the action passes.
     private fun relaunchJcef() {
         val action = ActionManager.getInstance().getAction("RestartJCEFActionId")
-        if (action == null) {
-            thisLogger().warn("RestartJCEFActionId action not available; new browser may fail until the IDE restarts")
+        if (action != null) {
+            val event = AnActionEvent.createEvent(DataContext.EMPTY_CONTEXT, null, "T3CodeToolWindow", ActionUiKind.NONE, null)
+            ActionUtil.performAction(action, event)
             return
         }
-        val event = AnActionEvent.createEvent(DataContext.EMPTY_CONTEXT, null, "T3CodeToolWindow", ActionUiKind.NONE, null)
-        ActionUtil.performAction(action, event)
+        runCatching {
+            val method = JBCefApp::class.java.getDeclaredMethod(
+                "restartJCEF", Boolean::class.javaPrimitiveType, Boolean::class.javaPrimitiveType,
+            )
+            method.isAccessible = true
+            method.invoke(JBCefApp.getInstance(), false, true) as Boolean
+        }.onSuccess { restarted ->
+            thisLogger().info("Relaunched JCEF via JBCefApp.restartJCEF: $restarted")
+        }.onFailure {
+            thisLogger().warn("Could not relaunch JCEF; new browser may fail until the IDE restarts", it)
+        }
     }
 
     fun pair() {
@@ -166,6 +176,7 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
         }
         browser = created
         browserDisposable = disposable
+        T3CodeJcefKeepAlive.apply()
         pageLoaded = false
         failureReported = false
         lastPongMillis = System.currentTimeMillis()
@@ -180,6 +191,8 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
         }
 
         cardPanel.add(created.component, CARD_BROWSER)
+        // JCEF may build the component's children lazily, so install once the pane is laid out.
+        T3CodeFileDrop(project, created).let { drop -> drop.install(); invokeLaterIfAlive { if (browser === created) drop.install() } }
         showBrowser()
         loadUrl(url)
         startHealthCheck()
@@ -247,18 +260,30 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
     }
 
     private fun healthTick() {
+        // cef_server connects asynchronously, and a relaunch replaces its pool; idle threads only expire after 60 s.
+        T3CodeJcefKeepAlive.apply()
         val target = browser ?: return
         val script = pingScript ?: return
         if (!pageLoaded || failureReported || disposed) return
 
         if (serverSeen && !T3CodeDiagnostics.isCefServerRunning()) {
             serverDied = true
+            // JBR-10027 kills cef_server every couple of minutes; recover quietly unless it fails right after a relaunch.
+            val now = System.currentTimeMillis()
+            if (now - lastAutoRelaunchMillis > AUTO_RELAUNCH_MIN_GAP_MILLIS) {
+                lastAutoRelaunchMillis = now
+                failureReported = true
+                thisLogger().info("cef_server exited; relaunching JCEF automatically")
+                invokeLaterIfAlive { restart() }
+                return
+            }
             reportFailure(
                 "Chromium server process exited",
                 "The IDE's out-of-process Chromium (cef_server) is no longer running, so every embedded browser is dead. " +
-                    (if (T3CodeJcefMode.isAffectedBuild) "This is JetBrains issue JBR-10027; switching JCEF to in-process mode fixes it. " else "") +
+                    (if (T3CodeJcefMode.isAffectedBuild && !T3CodeJcefKeepAlive.isActive) "This is JetBrains issue JBR-10027. " else "") +
+                    (if (T3CodeJcefMode.shouldOfferSwitch) "Switching JCEF to in-process mode fixes it. " else "") +
                     "Restart will ask the IDE to relaunch JCEF. ${T3CodeDiagnostics.logHint()}",
-                fix = if (T3CodeJcefMode.isOutOfProcess && T3CodeJcefMode.isAffectedBuild)
+                fix = if (T3CodeJcefMode.shouldOfferSwitch)
                     "Switch to In-Process JCEF and Restart IDE" to { T3CodeJcefMode.switchToInProcessAndRestart() } else null,
             )
             return
@@ -382,5 +407,7 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
     companion object {
         private const val CARD_BROWSER = "browser"
         private const val CARD_STATUS = "status"
+        // cef_server lives about two minutes under JBR-10027; dying again sooner than this means relaunching is not helping.
+        private const val AUTO_RELAUNCH_MIN_GAP_MILLIS = 60_000L
     }
 }
