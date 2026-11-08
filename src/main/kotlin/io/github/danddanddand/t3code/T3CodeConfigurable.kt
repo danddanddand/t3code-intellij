@@ -1,6 +1,7 @@
 package io.github.danddanddand.t3code
 
 import com.intellij.openapi.options.BoundConfigurable
+import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.ui.dsl.builder.MAX_LINE_LENGTH_WORD_WRAP
 import com.intellij.ui.dsl.builder.bindIntText
@@ -33,6 +34,16 @@ class T3CodeConfigurable : BoundConfigurable("T3 Code") {
         }
         group("Embedded Browser") {
             row {
+                checkBox("Send T3 Code shortcuts to the pane while it has focus")
+                    .bindSelected(settings::forwardShortcuts)
+                    .comment(
+                        "Shortcuts both apps use, such as ${shortcut("K")} and ${shortcut("Shift+A")}, go to T3 Code instead " +
+                            "of the IDE while the pane has focus. IDE shortcuts that T3 Code does not use keep working. " +
+                            "Includes your own bindings from T3 Code's keybindings.json; changes apply when the pane reloads.",
+                        MAX_LINE_LENGTH_WORD_WRAP,
+                    )
+            }
+            row {
                 checkBox("Do not suggest in-process JCEF as a fallback")
                     .bindSelected(settings::ignoreJcefModeAdvice)
                     .comment(
@@ -59,4 +70,6 @@ class T3CodeConfigurable : BoundConfigurable("T3 Code") {
             }
         }
     }
+
+    private fun shortcut(keys: String) = if (SystemInfo.isMac) "Cmd+$keys" else "Ctrl+$keys"
 }

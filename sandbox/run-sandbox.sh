@@ -41,12 +41,23 @@ grep -q "Task :runSandboxIde" "$OUT/ide-stdout.log" || { echo "IDE never launche
 echo "sandbox IDE launched, sampling for $MINUTES min"
 
 # --- process sampler -------------------------------------------------------------------------------------
+# Only the sandbox IDE's own browser processes count: a running IDE has its own cef_server, which would otherwise
+# keep the sampler from ever seeing the sandbox's exit.
+sandbox_browser_rows() {
+  local ide pids
+  ide=$(pgrep -f "config_runSandboxIde" | head -1 || true)
+  [ -z "$ide" ] && return 0
+  pids=$(ps -axo pid=,ppid= | awk -v root="$ide" '{ parent[$1] = $2 } END {
+    for (p in parent) { q = p; while (q != "" && q != 0 && q != 1) { if (q == root) { print p; break } q = parent[q] } } }')
+  [ -z "$pids" ] && return 0
+  ps -o pid=,rss=,%cpu=,etime=,comm= -p "$(echo $pids | tr ' ' ',')" | grep -i "cef_server\|jcef Helper" || true
+}
+
 echo "ts,pid,rss_kb,cpu,etime,comm" >"$OUT/processes.csv"
 END=$((SECONDS + MINUTES * 60)); SEEN=0; DIED_AT=""
 while [ $SECONDS -lt $END ]; do
   NOW=$(date +%H:%M:%S)
-  ROWS=$(ps -axo pid=,rss=,%cpu=,etime=,comm= | grep -i "cef_server\|jcef Helper" | grep -v grep || true)
-  if [ "${T3_SANDBOX_INPROCESS:-false}" = "true" ]; then ROWS=$(ps -axo pid=,rss=,%cpu=,etime=,comm= | grep -i "jcef Helper" | grep -v grep || true); fi
+  ROWS=$(sandbox_browser_rows)
   if [ -n "$ROWS" ]; then
     SEEN=1
     echo "$ROWS" | awk -v t="$NOW" '{c=$5; for(i=6;i<=NF;i++) c=c" "$i; printf "%s,%s,%s,%s,%s,%s\n", t,$1,$2,$3,$4,c}' >>"$OUT/processes.csv"

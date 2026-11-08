@@ -14,5 +14,6 @@
                                  id="io.github.danddanddand.t3code.settings" displayName="T3 Code"/>
         <notificationGroup id="T3 Code" displayType="BALLOON"/>
         <postStartupActivity implementation="io.github.danddanddand.t3code.T3CodeSandboxActivity"/>
+        <actionPromoter implementation="io.github.danddanddand.t3code.T3CodeShortcuts$Promoter"/>
     </extensions>
 </idea-plugin>

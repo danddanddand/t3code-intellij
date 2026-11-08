@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-11-08
+
+### Added
+
+- T3 Code's keyboard shortcuts reach T3 Code while the pane has focus. The IDE offers every key press to its own keymap first, so shortcuts both apps use ran the IDE action instead: Cmd+K opened Commit and Cmd+Shift+A opened Find Action. The plugin now sends T3 Code's shortcuts, its defaults plus your own `keybindings.json`, to the page. IDE shortcuts that T3 Code does not use keep working, and a setting turns the forwarding off.
+
+### Fixed
+
+- **Paste** in the T3 Code terminal's right-click menu did nothing. The page's clipboard read waited for a permission prompt the embedded browser cannot show; the plugin now answers it from the IDE clipboard, for T3 Code's own pages only.
+- A page that opened a blank popup replaced T3 Code in the pane with an empty page. Such popups are now dropped.
+- Automatic pairing no longer mints tokens on the wrong server. `t3 pair` always pairs with the server of its own data directory, so with a different server URL in the settings each attempt minted an unusable token there, once a minute. The plugin now checks which server the CLI uses before pairing, explains a mismatch, and stops trying automatically.
+- Cmd+W can no longer close the T3 Code tab and leave the tool window empty.
+
 ## [0.1.7] - 2026-11-08
 
 ### Fixed

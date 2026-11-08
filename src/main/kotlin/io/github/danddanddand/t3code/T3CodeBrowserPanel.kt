@@ -63,6 +63,8 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
     @Volatile private var lastAutoRelaunchMillis = 0L
     @Volatile private var lastAutoPairMillis = 0L
     @Volatile private var pairing = false
+    /** Set once the CLI turns out to pair with another server; automatic pairing would only fail again. */
+    @Volatile private var autoPairBlocked = false
 
     init {
         Disposer.register(parent, this)
@@ -158,14 +160,18 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
                         T3CodeNotifier.info(project, "T3 Code", "Pairing token minted, completing pairing in the embedded browser.")
                         loadUrl(result.url)
                     }
-                    is T3Pairing.Result.Failed -> showStatus(
-                        "Pairing failed",
-                        result.message.replace("\n", "<br>") +
-                            "<br><br>Alternatively, open the page without pairing and paste a token into its pairing form: " +
-                            "run <code>t3 pair</code> in a terminal, or mint one in the T3 Code desktop app.",
-                        retry = "Try Again" to { pair() },
-                        secondary = "Open Without Pairing" to { goHome() },
-                    )
+                    is T3Pairing.Result.Failed -> {
+                        if (result.wrongServer) autoPairBlocked = true
+                        showStatus(
+                            "Pairing failed",
+                            result.message.replace("\n", "<br>") +
+                                (if (result.wrongServer) "" else
+                                    "<br><br>Alternatively, open the page without pairing and paste a token into its pairing " +
+                                        "form: run <code>t3 pair</code> in a terminal, or mint one in the T3 Code desktop app."),
+                            retry = "Try Again" to { pair() },
+                            secondary = "Open Without Pairing" to { goHome() },
+                        )
+                    }
                 }
             }
         }
@@ -192,7 +198,8 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
             installPing(created, disposable)
             installFailureHandlers(created)
             T3CodeExternalLinks.install(created) { settings.serverUrl }
-            T3CodePageShims.install(created)
+            T3CodePageShims.install(created, disposable) { settings.serverUrl }
+            T3CodeShortcuts.install(this, created, disposable)
         } catch (e: Throwable) {
             tearDownBrowser()
             browserCreationFailed(e)
@@ -235,7 +242,7 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
 
     /** Runs `t3 pair` for the user when the page shows the pairing form, so the first visit never needs the gear menu. */
     private fun autoPairIfDue() {
-        if (!settings.autoPair || pairing || disposed) return
+        if (!settings.autoPair || autoPairBlocked || pairing || disposed) return
         val now = System.currentTimeMillis()
         // A token the server rejects brings the form straight back; do not mint a new one every tick.
         if (now - lastAutoPairMillis < AUTO_PAIR_MIN_GAP_MILLIS) return

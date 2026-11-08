@@ -16,7 +16,8 @@ class T3CodeToolWindowFactory : ToolWindowFactory, DumbAware {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         if (T3CodeSettings.instance.diagnosticLogging) T3CodeDiagnostics.enableJcefLoggingIfPossible()
         val panel = T3CodeBrowserPanel(project, toolWindow.disposable)
-        val content = ContentFactory.getInstance().createContent(panel, "", false)
+        // Not closable: Cmd+W would otherwise close the only tab and leave an empty tool window.
+        val content = ContentFactory.getInstance().createContent(panel, "", false).apply { isCloseable = false }
         toolWindow.contentManager.addContent(content)
 
         // The pane itself is just the T3 client; controls live in the tool window chrome like other IDE tool windows.

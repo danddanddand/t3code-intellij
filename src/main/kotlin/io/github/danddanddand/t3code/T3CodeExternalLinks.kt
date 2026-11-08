@@ -8,7 +8,6 @@ import org.cef.browser.CefFrame
 import org.cef.handler.CefLifeSpanHandlerAdapter
 import org.cef.handler.CefRequestHandlerAdapter
 import org.cef.network.CefRequest
-import java.net.URI
 
 /**
  * Keeps the pane on the T3 Code server. The pane has no address bar or back button, so following a link to
@@ -16,7 +15,6 @@ import java.net.URI
  * the server (links, new-window links, mailto: and friends) in the system browser instead.
  */
 internal object T3CodeExternalLinks {
-    private val LOOPBACK = setOf("127.0.0.1", "localhost", "[::1]", "::1")
     private val IN_PANE_SCHEMES = setOf("about", "data", "blob", "javascript", "devtools", "chrome", "chrome-error")
 
     fun install(target: JBCefBrowser, serverUrl: () -> String) {
@@ -29,8 +27,14 @@ internal object T3CodeExternalLinks {
         target.jbCefClient.addLifeSpanHandler(object : CefLifeSpanHandlerAdapter() {
             override fun onBeforePopup(browser: CefBrowser?, frame: CefFrame?, targetUrl: String?, targetFrameName: String?): Boolean =
                 guarded {
-                    // A new window has nowhere to go in a tool window: show off-server links outside, same-server ones in the pane.
-                    if (!targetUrl.isNullOrBlank() && !openOutside(targetUrl, serverUrl())) browser?.loadURL(targetUrl)
+                    // A new window has nowhere to go in a tool window: off-server links open outside and same-server pages
+                    // load in the pane. Anything else (about:blank, javascript:, data:) is a window the page means to fill
+                    // itself; loading that here would replace T3 Code with an empty page, so it is dropped.
+                    when {
+                        targetUrl.isNullOrBlank() || openOutside(targetUrl, serverUrl()) -> Unit
+                        T3ServerUrls.sameServer(targetUrl, serverUrl()) -> browser?.loadURL(targetUrl)
+                        else -> thisLogger().info("Dropped a popup for $targetUrl; it would have replaced T3 Code in the pane")
+                    }
                     true
                 }
         }, target.cefBrowser)
@@ -47,27 +51,12 @@ internal object T3CodeExternalLinks {
 
     /** Returns true (and hands the URL to the system browser) when [url] should not load in the pane. */
     private fun openOutside(url: String?, serverUrl: String): Boolean {
-        if (url.isNullOrBlank()) return false
-        val uri = runCatching { URI(url) }.getOrNull() ?: return false
+        val uri = T3ServerUrls.parse(url) ?: return false
         val scheme = uri.scheme?.lowercase() ?: return false
         if (scheme in IN_PANE_SCHEMES) return false
-        if ((scheme == "http" || scheme == "https") && sameServer(uri, serverUrl)) return false
+        if (T3ServerUrls.sameServer(uri, serverUrl)) return false
         thisLogger().info("Opening $url in the system browser instead of the T3 Code pane")
-        BrowserUtil.browse(url)
+        BrowserUtil.browse(uri)
         return true
-    }
-
-    private fun sameServer(uri: URI, serverUrl: String): Boolean {
-        val server = runCatching { URI(serverUrl.trim()) }.getOrNull() ?: return false
-        if (port(uri) != port(server)) return false
-        val host = uri.host?.lowercase() ?: return false
-        val serverHost = server.host?.lowercase() ?: return false
-        return host == serverHost || (host in LOOPBACK && serverHost in LOOPBACK)
-    }
-
-    private fun port(uri: URI): Int = when {
-        uri.port != -1 -> uri.port
-        uri.scheme.equals("https", ignoreCase = true) -> 443
-        else -> 80
     }
 }

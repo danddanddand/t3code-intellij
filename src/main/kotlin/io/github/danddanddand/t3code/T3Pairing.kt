@@ -15,10 +15,16 @@ import kotlin.io.path.exists
 object T3Pairing {
     sealed interface Result {
         data class Paired(val url: String) : Result
-        data class Failed(val message: String) : Result
+
+        /** [wrongServer]: the CLI pairs with a different server than the pane shows, so retrying cannot help. */
+        data class Failed(val message: String, val wrongServer: Boolean = false) : Result
     }
 
     fun pair(settings: T3CodeSettings): Result {
+        // `t3 pair` always pairs with the server of its data directory, whatever URL the pane points at. Check before
+        // minting, so a mismatch never leaves stray tokens on the other server.
+        cliServerOrigin()?.let { if (!T3ServerUrls.sameServer(it, settings.serverUrl)) return wrongServer(it, settings.serverUrl) }
+
         val cli = resolveCli(settings.cliPath) ?: return Result.Failed(
             "Could not find the t3 CLI (looked for '${settings.cliPath}' on PATH and in ~/.local/bin). " +
                 "Set the path under Settings, Tools, T3 Code."
@@ -40,9 +46,28 @@ object T3Pairing {
 
         val url = PAIRING_URL.find(output.stdout)?.groupValues?.get(1)
             ?: return Result.Failed("'t3 pair' succeeded but printed no pairing URL:\n${output.stdout.trim()}")
+        PAIRED_SERVER.find(output.stdout)?.groupValues?.get(1)?.let {
+            if (!T3ServerUrls.sameServer(it, settings.serverUrl)) return wrongServer(it, settings.serverUrl)
+        }
 
         // t3 prints the LAN address; the loopback host from settings is the one the IDE should pair against.
         return Result.Paired(rewriteHost(url, settings.serverUrl))
+    }
+
+    private fun wrongServer(cliServer: String, paneServer: String) = Result.Failed(
+        "The t3 CLI pairs with the server at $cliServer, but this pane shows $paneServer, so a token from it " +
+            "would not work here. Point Settings, Tools, T3 Code at $cliServer, or paste a token minted by the " +
+            "server at $paneServer into the page's pairing form.",
+        wrongServer = true,
+    )
+
+    /** The origin the CLI's server last announced, read from its data directory; null when unknown. */
+    private fun cliServerOrigin(): String? {
+        val baseDir = System.getenv("T3CODE_HOME")?.takeIf { it.isNotBlank() }?.let(Path::of)
+            ?: Path.of(System.getProperty("user.home"), ".t3")
+        val runtime = baseDir.resolve("userdata/server-runtime.json")
+        val text = runCatching { Files.readString(runtime) }.getOrNull() ?: return null
+        return RUNTIME_ORIGIN.find(text)?.groupValues?.get(1)
     }
 
     private fun resolveCli(configured: String): String? {
@@ -62,4 +87,6 @@ object T3Pairing {
     }
 
     private val PAIRING_URL = Regex("""Pairing URL:\s*(\S+)""")
+    private val PAIRED_SERVER = Regex("""Pairing with .*\((https?://[^)\s]+)\)""")
+    private val RUNTIME_ORIGIN = Regex(""""origin"\s*:\s*"([^"]+)"""")
 }

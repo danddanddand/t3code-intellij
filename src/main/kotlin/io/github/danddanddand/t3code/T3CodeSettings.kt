@@ -12,6 +12,7 @@ class T3CodeSettings : PersistentStateComponent<T3CodeSettings> {
     var cliPath = "t3"
     var pairTtl = "5m"
     var autoPair = true
+    var forwardShortcuts = true
     var healthCheckIntervalSeconds = 10
     var healthCheckTimeoutSeconds = 30
     var notifyOnFailure = true

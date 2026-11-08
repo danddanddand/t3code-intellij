@@ -28,6 +28,7 @@ your agents without leaving the IDE. Unofficial; not affiliated with T3 Tools In
 <li>Checks the server is reachable before loading and explains how to start it when it is not.</li>
 <li>Pairs with the server for you by running <code>t3 pair</code>.</li>
 <li>Accepts files, images and folders dragged in from Finder or other apps, attaching them to the composer as the T3 Code desktop app does.</li>
+<li>Sends T3 Code's keyboard shortcuts to the pane while it has focus, so shortcuts both apps use, such as Cmd+K, reach T3 Code instead of the IDE.</li>
 <li>Monitors the page and the Chromium process and reports a frozen or crashed browser with a one-click restart.</li>
 <li>Works around the IntelliJ 2026.2 out-of-process JCEF bug (JBR-10027) that kills embedded browsers after two minutes.</li>
 </ul>
@@ -52,7 +53,16 @@ Requires an IntelliJ Platform 2026.3 IDE (IntelliJ IDEA, WebStorm, PyCharm, GoLa
    in the settings.
 
 Settings live under Settings, Tools, T3 Code: server URL, path to the `t3` CLI, pairing TTL,
-health-check timing and diagnostic logging.
+shortcut forwarding, health-check timing and diagnostic logging.
+
+### Keyboard shortcuts
+
+The IDE offers every key press to its own keymap before the embedded browser sees it, so a
+shortcut both apps use would run the IDE action. While the T3 Code pane has focus, the plugin
+sends T3 Code's shortcuts to the page instead: its defaults plus any you added in T3 Code's
+`keybindings.json`. IDE shortcuts that T3 Code does not use, such as Shift Shift, keep working,
+and copy, paste and undo work as before. To keep the IDE's shortcuts, turn off **Send T3 Code
+shortcuts to the pane** in the settings.
 
 ### IntelliJ 2026.2 and out-of-process JCEF
 
