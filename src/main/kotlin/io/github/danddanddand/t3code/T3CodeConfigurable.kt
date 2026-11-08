@@ -24,6 +24,12 @@ class T3CodeConfigurable : BoundConfigurable("T3 Code") {
             row("Pairing token TTL:") {
                 textField().bindText(settings::pairTtl).columns(10)
             }
+            row {
+                checkBox("Pair automatically when the page asks for a pairing token")
+                    .bindSelected(settings::autoPair)
+                    .comment("Runs the t3 CLI's pair command whenever the server shows its pairing form. " +
+                        "Pair with T3 Code in the gear menu does the same on demand.", MAX_LINE_LENGTH_WORD_WRAP)
+            }
         }
         group("Embedded Browser") {
             row {

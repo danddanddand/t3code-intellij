@@ -61,6 +61,8 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
     @Volatile private var serverSeen = false
     @Volatile private var serverDied = false
     @Volatile private var lastAutoRelaunchMillis = 0L
+    @Volatile private var lastAutoPairMillis = 0L
+    @Volatile private var pairing = false
 
     init {
         Disposer.register(parent, this)
@@ -144,20 +146,25 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
     }
 
     fun pair() {
-        showStatus("Pairing", "Running <code>t3 pair</code>…", retry = null)
+        if (pairing) return
+        pairing = true
+        showStatus("Pairing", "Running <code>t3 pair</code> to connect this pane to the T3 Code server…", retry = null)
         ApplicationManager.getApplication().executeOnPooledThread {
             val result = T3Pairing.pair(settings)
             invokeLaterIfAlive {
+                pairing = false
                 when (result) {
                     is T3Pairing.Result.Paired -> {
                         T3CodeNotifier.info(project, "T3 Code", "Pairing token minted, completing pairing in the embedded browser.")
-                        if (browser == null) openBrowser(result.url) else loadUrl(result.url)
+                        loadUrl(result.url)
                     }
                     is T3Pairing.Result.Failed -> showStatus(
                         "Pairing failed",
-                        result.message.replace("\n", "<br>"),
+                        result.message.replace("\n", "<br>") +
+                            "<br><br>Alternatively, open the page without pairing and paste a token into its pairing form: " +
+                            "run <code>t3 pair</code> in a terminal, or mint one in the T3 Code desktop app.",
                         retry = "Try Again" to { pair() },
-                        secondary = "Open Without Pairing" to { restart() },
+                        secondary = "Open Without Pairing" to { goHome() },
                     )
                 }
             }
@@ -213,11 +220,42 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
     private fun installPing(target: JBCefBrowser, disposable: Disposable) {
         val query = JBCefJSQuery.create(target as com.intellij.ui.jcef.JBCefBrowserBase)
         Disposer.register(disposable, query)
-        query.addHandler {
+        query.addHandler { answer ->
             lastPongMillis = System.currentTimeMillis()
+            if (answer == PONG_NEEDS_PAIRING) autoPairIfDue()
             null
         }
-        pingScript = query.inject("'pong'")
+        // The server answers every path with its SPA, so the only sign that the pane is unpaired is the pairing form itself.
+        pingScript = query.inject(
+            "(function(){var t=(document.body&&document.body.innerText)||'';" +
+                "return t.indexOf('$PAIRING_FORM_TITLE')>=0?'$PONG_NEEDS_PAIRING':'pong'})()"
+        )
+    }
+
+    /** Runs `t3 pair` for the user when the page shows the pairing form, so the first visit never needs the gear menu. */
+    private fun autoPairIfDue() {
+        if (!settings.autoPair || pairing || disposed) return
+        val now = System.currentTimeMillis()
+        // A token the server rejects brings the form straight back; do not mint a new one every tick.
+        if (now - lastAutoPairMillis < AUTO_PAIR_MIN_GAP_MILLIS) return
+        lastAutoPairMillis = now
+        thisLogger().info("Pairing form detected; running t3 pair automatically")
+        invokeLaterIfAlive { pair() }
+    }
+
+    /** Pings right after a load, since the SPA renders the pairing form a moment after onLoadEnd. */
+    private fun scheduleEarlyPings() {
+        listOf(500L, 2000L).forEach { delay ->
+            AppExecutorUtil.getAppScheduledExecutorService().schedule({ ping() }, delay, TimeUnit.MILLISECONDS)
+        }
+    }
+
+    private fun ping() {
+        val target = browser ?: return
+        val script = pingScript ?: return
+        if (!pageLoaded || failureReported || disposed) return
+        runCatching { target.cefBrowser.executeJavaScript(script, target.cefBrowser.url ?: "", 0) }
+            .onFailure { thisLogger().warn("Ping to embedded browser failed", it) }
     }
 
     private var pingScript: String? = null
@@ -231,6 +269,7 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
                 if (frame?.isMain == true) {
                     pageLoaded = true
                     lastPongMillis = System.currentTimeMillis()
+                    scheduleEarlyPings()
                 }
             }
 
@@ -275,9 +314,7 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
     private fun healthTick() {
         // cef_server connects asynchronously, and a relaunch replaces its pool; idle threads only expire after 60 s.
         T3CodeJcefKeepAlive.apply()
-        val target = browser ?: return
-        val script = pingScript ?: return
-        if (!pageLoaded || failureReported || disposed) return
+        if (browser == null || pingScript == null || !pageLoaded || failureReported || disposed) return
 
         if (serverSeen && !T3CodeDiagnostics.isCefServerRunning()) {
             serverDied = true
@@ -315,8 +352,7 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
             )
             return
         }
-        runCatching { target.cefBrowser.executeJavaScript(script, target.cefBrowser.url ?: "", 0) }
-            .onFailure { thisLogger().warn("Ping to embedded browser failed", it) }
+        ping()
     }
 
     private fun reportFailure(title: String, detail: String, fix: Pair<String, () -> Unit>? = null) {
@@ -337,7 +373,9 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
         if (url.isEmpty()) return
         pageLoaded = false
         lastPongMillis = System.currentTimeMillis()
-        browser?.loadURL(url) ?: openBrowser(url)
+        val target = browser ?: return openBrowser(url)
+        target.loadURL(url)
+        showBrowser()
     }
 
     private fun showBrowser() = cards.show(cardPanel, CARD_BROWSER)
@@ -427,5 +465,9 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
         private const val CARD_STATUS = "status"
         // cef_server lives about two minutes under JBR-10027; dying again sooner than this means relaunching is not helping.
         private const val AUTO_RELAUNCH_MIN_GAP_MILLIS = 60_000L
+        private const val AUTO_PAIR_MIN_GAP_MILLIS = 60_000L
+        /** Heading of the server's pairing form; the ping looks for it to tell an unpaired pane from a paired one. */
+        private const val PAIRING_FORM_TITLE = "Pair with this environment"
+        private const val PONG_NEEDS_PAIRING = "pair"
     }
 }

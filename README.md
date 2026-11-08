@@ -46,8 +46,10 @@ Requires an IntelliJ Platform 2026.3 IDE (IntelliJ IDEA, WebStorm, PyCharm, GoLa
 
 1. Run the T3 Code desktop app, or `t3 serve`, so the server is listening on port 3773.
 2. Open the **T3 Code** tool window on the right edge.
-3. The first time, press **Pair** in the gear menu. The plugin runs `t3 pair`, loads the pairing
-   URL, and the browser keeps the session from then on.
+3. The first time, the server shows its pairing form and the plugin pairs for you: it runs
+   `t3 pair`, loads the pairing URL, and the browser keeps the session from then on. **Pair with
+   T3 Code** in the gear menu does the same on demand, and the automatic pairing can be turned off
+   in the settings.
 
 Settings live under Settings, Tools, T3 Code: server URL, path to the `t3` CLI, pairing TTL,
 health-check timing and diagnostic logging.

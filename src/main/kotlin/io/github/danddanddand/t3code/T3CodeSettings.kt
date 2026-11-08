@@ -11,6 +11,7 @@ class T3CodeSettings : PersistentStateComponent<T3CodeSettings> {
     var serverUrl = "http://127.0.0.1:3773/"
     var cliPath = "t3"
     var pairTtl = "5m"
+    var autoPair = true
     var healthCheckIntervalSeconds = 10
     var healthCheckTimeoutSeconds = 30
     var notifyOnFailure = true

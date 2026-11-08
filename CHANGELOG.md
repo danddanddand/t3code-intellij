@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-11-08
+
+### Added
+
+- The pane pairs itself. When the T3 Code server shows its pairing form (after an IDE update, a new server, or an expired session), the plugin runs `t3 pair` and completes the pairing without a trip to the gear menu. A setting turns this off.
+
+### Fixed
+
+- **Pair with T3 Code** left the pane on "Running t3 pair…" even though pairing had succeeded; the paired page was loaded behind the status text and only an IDE restart revealed it.
+- The pairing failure message now explains the manual alternative: paste a token from `t3 pair` or the T3 Code app into the page's own pairing form.
+
 ## [0.1.5] - 2026-11-07
 
 ### Changed
