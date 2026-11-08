@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-11-08
+
+### Fixed
+
+- The floating browser preview no longer offers a pop-out button that always fails with "Unable to pop out preview: Picture-in-Picture is not available". The IDE's embedded browser reports picture-in-picture support but has no picture-in-picture window, so the plugin now tells T3 Code the feature is unavailable and the button is hidden. Opening the preview in the panel and floating it over the chat still work.
+
 ## [0.1.6] - 2026-11-08
 
 ### Added

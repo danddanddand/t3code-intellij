@@ -192,6 +192,7 @@ class T3CodeBrowserPanel(private val project: Project, parent: Disposable) : Sim
             installPing(created, disposable)
             installFailureHandlers(created)
             T3CodeExternalLinks.install(created) { settings.serverUrl }
+            T3CodePageShims.install(created)
         } catch (e: Throwable) {
             tearDownBrowser()
             browserCreationFailed(e)
