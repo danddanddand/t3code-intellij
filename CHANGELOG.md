@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-11-07
+
+### Changed
+
+- Built for IntelliJ Platform 2026.3 (build 263.*). The 0.1.4 build was limited to 2026.2 and the IDE refused to load it after the 2026.3 update.
+
 ## [0.1.4] - 2026-11-07
 
 ### Fixed

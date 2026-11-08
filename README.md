@@ -40,7 +40,7 @@ From the JetBrains Marketplace: Settings, Plugins, search for "T3 Code Tool Wind
 From a zip: download it from the [releases page](https://github.com/danddanddand/t3code-intellij/releases),
 then Settings, Plugins, gear icon, Install Plugin from Disk.
 
-Requires an IntelliJ Platform 2026.2 IDE (IntelliJ IDEA, WebStorm, PyCharm, GoLand, Rider, …).
+Requires an IntelliJ Platform 2026.3 IDE (IntelliJ IDEA, WebStorm, PyCharm, GoLand, Rider, …).
 
 ## Usage
 
